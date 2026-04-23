@@ -76,6 +76,7 @@ export default function App() {
   const [transactions, setTransactions] = useState([]);
   const [debts, setDebts] = useState([]); 
   
+  // Default Settings (Struktur Data Lengkap)
   const defaultSettings = {
     limits: { daily: 50000, weekly: 300000, monthly: 1500000 },
     targets: { tabungan: 5000000, darurat: 2000000 },
@@ -103,7 +104,7 @@ export default function App() {
 
   // --- Efek Zoom Lock & Auth ---
   useEffect(() => {
-    // Force Viewport Lock Anti-Zoom
+    // Lock Zoom di HP secara paksa
     const meta = document.querySelector('meta[name="viewport"]') || document.createElement('meta');
     meta.name = "viewport";
     meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no";
@@ -330,17 +331,16 @@ export default function App() {
     const totalAlloc = Number(settings.allocations.kebutuhan) + Number(settings.allocations.tabungan) + Number(settings.allocations.darurat);
     if (totalAlloc !== 100) { alert(`Total alokasi harus 100%. Saat ini: ${totalAlloc}%`); return; }
     try {
-      if (!isFirebaseConfigured) { localStorage.setItem('finansialku_v2_settings', JSON.stringify(settings)); }
+      if (!isFirebaseConfigured) { localStorage.setItem('finansialku_v3_settings', JSON.stringify(settings)); }
       else { await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'app_settings'), settings); }
       setShowNotification(true);
       setTimeout(() => setShowNotification(false), 3000);
     } catch (err) {}
   };
 
-  // --- Sub-Renders ---
+  // --- UI Renders ---
   const renderDashboard = () => (
     <div className="space-y-6 animate-fade-in pb-12">
-      {/* Saldo Section */}
       <div className="bg-gradient-to-br from-indigo-950 via-indigo-900 to-blue-900 rounded-[2.5rem] p-7 text-white shadow-2xl relative overflow-hidden border border-white/10">
         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-400/20 rounded-full -mr-10 -mt-10 blur-3xl"></div>
         <div className="flex justify-between items-start mb-6">
@@ -359,7 +359,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Monitoring Limit Cepat */}
       <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 space-y-4">
          <div className="flex items-center gap-2 px-1">
            <AlertCircle size={14} className="text-indigo-500" />
@@ -433,7 +432,6 @@ export default function App() {
   );
 
   const renderLaporan = () => {
-    // Perbaikan: Pastikan grafik terhitung dan ter-render
     const chartWeekly = transactions.filter(t => t.type === 'expense' && t.cycle === 'weekly').reduce((acc, curr) => { acc[curr.category] = (acc[curr.category] || 0) + curr.amount; return acc; }, {});
     const chartMonthly = transactions.filter(t => t.type === 'expense' && t.cycle === 'monthly').reduce((acc, curr) => { acc[curr.category] = (acc[curr.category] || 0) + curr.amount; return acc; }, {});
     const dataW = Object.keys(chartWeekly).map(key => ({ name: key, value: chartWeekly[key] }));
@@ -441,7 +439,6 @@ export default function App() {
 
     return (
       <div className="space-y-6 animate-fade-in pb-24">
-        {/* Card 1: Target Dana */}
         <div className="bg-white p-7 rounded-[2.5rem] shadow-sm border border-gray-100 space-y-8">
            <h3 className="font-black text-gray-900 uppercase text-sm tracking-tighter flex items-center gap-2">
              <PieChartIcon size={20} className="text-blue-600" /> Analisis Target & Progres
@@ -458,7 +455,6 @@ export default function App() {
            </div>
         </div>
 
-        {/* Card 2 & 3: Pie Charts (YANG SEBELUMNYA GADA) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white p-7 rounded-[2.5rem] shadow-sm border border-gray-100">
             <h3 className="font-black text-gray-800 mb-6 uppercase text-[10px] tracking-widest flex items-center gap-2"><CalendarDays size={16} className="text-indigo-400"/> Jajan Mingguan</h3>
@@ -574,11 +570,16 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans selection:bg-indigo-100">
-      {/* Header Ramping untuk Mobile */}
-      <header className="bg-white/90 backdrop-blur-xl sticky top-0 z-40 px-6 py-3.5 lg:hidden border-b border-gray-100">
+      {/* Header Ramping untuk Mobile - Settings Dihapus dari Header sesuai instruksi */}
+      <header className="bg-white/90 backdrop-blur-xl sticky top-0 z-40 px-6 py-4 lg:hidden border-b border-gray-100">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5"><div className="bg-indigo-600 p-1.5 rounded-lg shadow-lg shadow-indigo-100"><Wallet size={16} className="text-white" /></div><h1 className="text-sm font-black text-gray-900 tracking-tighter uppercase">FinansialKu</h1></div>
-          <div className="flex items-center gap-2"><div className="text-right hidden sm:block"><p className="text-[10px] font-black text-indigo-600 leading-none">{formatRupiah(totalSaldo)}</p></div><button onClick={() => setActiveTab('pengaturan')} className={`p-2 rounded-xl transition-colors ${activeTab === 'pengaturan' ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-50 text-gray-400'}`}><Settings size={18} /></button></div>
+          <div className="flex items-center gap-2.5">
+            <div className="bg-indigo-600 p-1.5 rounded-lg shadow-lg shadow-indigo-100"><Wallet size={16} className="text-white" /></div>
+            <h1 className="text-sm font-black text-gray-900 tracking-tighter uppercase">FinansialKu</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-right"><p className="text-[11px] font-black text-indigo-600 leading-none">{formatRupiah(totalSaldo)}</p></div>
+          </div>
         </div>
       </header>
 
@@ -595,7 +596,6 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Konten Utama */}
       <main className="flex-1 lg:ml-80 p-4 sm:p-6 md:p-12 max-w-5xl mx-auto w-full">
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'input' && renderInputData()}
@@ -605,16 +605,13 @@ export default function App() {
           {activeTab === 'pengaturan' && <SettingsPage settings={settings} onSave={handleSaveSettings} setSettings={setSettingsApp} showNotif={showNotification} />}
       </main>
 
-      {/* NAVIGATION BAWAH - DIPASTIKAN LENGKAP UNTUK HP */}
+      {/* NAVIGATION BAWAH HP - TETAP ADA SISTEM & KALKULATOR */}
       <nav className="lg:hidden fixed bottom-4 left-4 right-4 h-18 bg-gray-950/98 backdrop-blur-3xl rounded-[2.2rem] px-2 flex justify-between items-center z-50 shadow-2xl border border-white/5">
         <NavItem icon={<Home />} label="Home" isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
         <NavItem icon={<PieChartIcon />} label="Report" isActive={activeTab === 'laporan'} onClick={() => setActiveTab('laporan')} />
-        
-        {/* Tombol Plus di Tengah */}
-        <button onClick={() => setActiveTab('input')} className="bg-indigo-600 text-white p-4 rounded-full shadow-2xl transform -translate-y-7 active:scale-90 transition-all border-[6px] border-gray-900 ring-4 ring-indigo-500/10">
+        <button onClick={() => setActiveTab('input')} className="bg-indigo-600 text-white p-4 rounded-full shadow-2xl transform -translate-y-7 active:scale-90 transition-all border-[6px] border-gray-900">
           <PlusCircle size={22} />
         </button>
-
         <NavItem icon={<HandCoins />} label="Debt" isActive={activeTab === 'debts'} onClick={() => setActiveTab('debts')} />
         <NavItem icon={<CalcIcon />} label="Calc" isActive={activeTab === 'kalkulator'} onClick={() => setActiveTab('kalkulator')} />
         <NavItem icon={<Settings />} label="Set" isActive={activeTab === 'pengaturan'} onClick={() => setActiveTab('pengaturan')} />
@@ -685,13 +682,40 @@ function SettingsPage({ settings, onSave, setSettings, showNotif }) {
           <div><label className="text-[9px] font-black text-gray-500 uppercase ml-1">Target Mingguan</label><input type="text" value={formatNumberInput(settings?.limits?.weekly)} onChange={(e) => setSettings({...settings, limits: {...settings.limits, weekly: Number(parseNumberInput(e.target.value))}})} className="w-full p-4 bg-gray-50 border-0 rounded-2xl font-bold text-sm" /></div>
           <div><label className="text-[9px] font-black text-gray-500 uppercase ml-1">Tagihan Bulanan</label><input type="text" value={formatNumberInput(settings?.limits?.monthly)} onChange={(e) => setSettings({...settings, limits: {...settings.limits, monthly: Number(parseNumberInput(e.target.value))}})} className="w-full p-4 bg-gray-50 border-0 rounded-2xl font-bold text-sm" /></div>
         </section>
+        
+        {/* RESTORASI BAGIAN ALOKASI (%) YANG HILANG */}
         <section className="space-y-4">
-          <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2">Target Dana Utama</h3>
-          <div><label className="text-[9px] font-black text-gray-500 uppercase ml-1">Goal Tabungan</label><input type="text" value={formatNumberInput(settings?.targets?.tabungan)} onChange={(e) => setSettings({...settings, targets: {...settings.targets, tabungan: Number(parseNumberInput(e.target.value))}})} className="w-full p-4 bg-gray-50 border-0 rounded-2xl font-bold text-sm" /></div>
-          <div><label className="text-[9px] font-black text-gray-500 uppercase ml-1">Goal Darurat</label><input type="text" value={formatNumberInput(settings?.targets?.darurat)} onChange={(e) => setSettings({...settings, targets: {...settings.targets, darurat: Number(parseNumberInput(e.target.value))}})} className="w-full p-4 bg-gray-50 border-0 rounded-2xl font-bold text-sm" /></div>
+           <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">Alokasi Pendapatan (%)</h3>
+           <div className="grid grid-cols-3 gap-3">
+              {[
+                { key: 'kebutuhan', label: 'Utama', color: 'text-indigo-600' },
+                { key: 'tabungan', label: 'Tabung', color: 'text-emerald-600' },
+                { key: 'darurat', label: 'Darurat', color: 'text-amber-600' }
+              ].map(item => (
+                <div key={item.key} className="text-center">
+                  <label className={`block text-[8px] font-black ${item.color} mb-2 uppercase`}>{item.label}</label>
+                  <input 
+                    type="number" 
+                    value={settings?.allocations?.[item.key]} 
+                    onChange={(e) => setSettings({...settings, allocations: {...settings.allocations, [item.key]: e.target.value}})} 
+                    className="w-full p-3 bg-gray-50 border-0 rounded-2xl text-center font-black text-xs" 
+                  />
+                </div>
+              ))}
+           </div>
+           <p className={`text-[9px] font-bold text-center mt-2 uppercase ${Number(settings.allocations.kebutuhan) + Number(settings.allocations.tabungan) + Number(settings.allocations.darurat) === 100 ? 'text-emerald-500' : 'text-rose-500'}`}>
+             Total Alokasi: {Number(settings.allocations.kebutuhan) + Number(settings.allocations.tabungan) + Number(settings.allocations.darurat)}% / 100%
+           </p>
         </section>
-        {showNotif && <div className="p-4 bg-gray-900 text-white rounded-2xl text-center font-black text-[10px] uppercase animate-pulse">Update Berhasil!</div>}
-        <button onClick={onSave} className="w-full py-5 bg-indigo-600 text-white rounded-[2rem] font-black text-xs tracking-widest active:scale-95 transition-all uppercase">Simpan Perubahan</button>
+
+        <section className="space-y-4">
+          <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] border-b pb-2">Goal Dana Utama</h3>
+          <div><label className="text-[9px] font-black text-gray-500 uppercase ml-1">Target Tabungan</label><input type="text" value={formatNumberInput(settings?.targets?.tabungan)} onChange={(e) => setSettings({...settings, targets: {...settings.targets, tabungan: Number(parseNumberInput(e.target.value))}})} className="w-full p-4 bg-gray-50 border-0 rounded-2xl font-bold text-sm" /></div>
+          <div><label className="text-[9px] font-black text-gray-500 uppercase ml-1">Target Darurat</label><input type="text" value={formatNumberInput(settings?.targets?.darurat)} onChange={(e) => setSettings({...settings, targets: {...settings.targets, darurat: Number(parseNumberInput(e.target.value))}})} className="w-full p-4 bg-gray-50 border-0 rounded-2xl font-bold text-sm" /></div>
+        </section>
+
+        {showNotif && <div className="p-4 bg-gray-900 text-white rounded-2xl text-center font-black text-[10px] uppercase animate-pulse shadow-lg">Sistem Berhasil Diperbarui!</div>}
+        <button onClick={onSave} className="w-full py-5 bg-indigo-600 text-white rounded-[2rem] font-black text-xs tracking-widest active:scale-95 transition-all uppercase shadow-xl shadow-indigo-200">Update Konfigurasi</button>
       </div>
     </div>
   );

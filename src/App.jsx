@@ -74,13 +74,15 @@ export default function App() {
   const [transactions, setTransactions] = useState([]);
   const [debts, setDebts] = useState([]); 
   
-  const [settings, setSettingsApp] = useState({
+  // Default Settings
+  const defaultSettings = {
     limits: { weekly: 300000, monthly: 1500000 },
     targets: { tabungan: 5000000, darurat: 2000000 },
     allocations: { kebutuhan: 50, tabungan: 30, darurat: 20 },
     categories: ['Makan & Jajan', 'Transportasi', 'Tagihan Kos', 'Listrik & Air', 'Hiburan', 'Lainnya']
-  });
+  };
 
+  const [settings, setSettingsApp] = useState(defaultSettings);
   const [showNotification, setShowNotification] = useState(false);
   const [calcInput, setCalcInput] = useState('');
   
@@ -89,7 +91,7 @@ export default function App() {
     amount: '',
     category: 'Makan & Jajan',
     sourceWallet: 'Utama',
-    destWallet: 'Tabungan', // Default tujuan transfer
+    destWallet: 'Tabungan',
     autoAllocate: true,
     cycle: 'weekly',
     person: '', 
@@ -128,7 +130,17 @@ export default function App() {
       
       if (localTrans) setTransactions(JSON.parse(localTrans));
       if (localDebts) setDebts(JSON.parse(localDebts));
-      if (localSettings) setSettingsApp(JSON.parse(localSettings));
+      if (localSettings) {
+        // Logika Pengaman: Gabungkan data lama dengan struktur baru agar tidak crash
+        const saved = JSON.parse(localSettings);
+        setSettingsApp({
+          ...defaultSettings,
+          ...saved,
+          targets: { ...defaultSettings.targets, ...(saved.targets || {}) },
+          limits: { ...defaultSettings.limits, ...(saved.limits || {}) },
+          allocations: { ...defaultSettings.allocations, ...(saved.allocations || {}) }
+        });
+      }
       return;
     }
 
@@ -152,7 +164,14 @@ export default function App() {
 
     const unsubSettings = onSnapshot(settingsRef, (snapshot) => {
       snapshot.forEach(doc => {
-        if (doc.id === 'app_settings') setSettingsApp(doc.data());
+        if (doc.id === 'app_settings') {
+          const cloudData = doc.data();
+          setSettingsApp({
+            ...defaultSettings,
+            ...cloudData,
+            targets: { ...defaultSettings.targets, ...(cloudData.targets || {}) }
+          });
+        }
       });
     });
 
@@ -193,9 +212,15 @@ export default function App() {
   // --- Perhitungan Limit & Grafik ---
   const currentWeek = useMemo(() => {
     const curr = new Date();
-    const first = curr.getDate() - curr.getDay() + 1;
-    const monday = new Date(curr.setDate(first)).toISOString().split('T')[0];
-    const sunday = new Date(curr.setDate(first + 6)).toISOString().split('T')[0];
+    const day = curr.getDay();
+    const diff = curr.getDate() - day + (day === 0 ? -6 : 1);
+    const mondayDate = new Date(curr.setDate(diff));
+    const monday = mondayDate.toISOString().split('T')[0];
+    
+    const sundayDate = new Date(mondayDate);
+    sundayDate.setDate(mondayDate.getDate() + 6);
+    const sunday = sundayDate.toISOString().split('T')[0];
+    
     return { monday, sunday };
   }, []);
 
@@ -247,9 +272,9 @@ export default function App() {
         status: 'active'
       };
       if (!isFirebaseConfigured) {
-        const updatedDebts = [debtItem, ...debts];
-        setDebts(updatedDebts);
-        localStorage.setItem('finansialku_v2_debts', JSON.stringify(updatedDebts));
+        const dbtList = JSON.parse(localStorage.getItem('finansialku_v2_debts') || '[]');
+        localStorage.setItem('finansialku_v2_debts', JSON.stringify([debtItem, ...dbtList]));
+        setDebts([debtItem, ...debts]);
       } else {
         await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'debts', debtItem.id.toString()), debtItem);
       }
@@ -270,9 +295,9 @@ export default function App() {
         status: 'active'
       };
       if (!isFirebaseConfigured) {
-        const updatedDebts = [debtItem, ...debts];
-        setDebts(updatedDebts);
-        localStorage.setItem('finansialku_v2_debts', JSON.stringify(updatedDebts));
+        const dbtList = JSON.parse(localStorage.getItem('finansialku_v2_debts') || '[]');
+        localStorage.setItem('finansialku_v2_debts', JSON.stringify([debtItem, ...dbtList]));
+        setDebts([debtItem, ...debts]);
       } else {
         await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'debts', id.toString()), debtItem);
       }
@@ -377,7 +402,7 @@ export default function App() {
     }
   };
 
-  // --- UI Components ---
+  // --- UI Renderers ---
   const renderDashboard = () => (
     <div className="space-y-6 animate-fade-in pb-10">
       <div className="bg-gradient-to-br from-indigo-900 via-blue-900 to-indigo-950 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden border border-white/10">
@@ -400,11 +425,11 @@ export default function App() {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-transform active:scale-95 text-center">
-           <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Utang Saya</p>
+           <p className="text-[10px] font-black text-gray-400 uppercase mb-2 flex items-center gap-2 justify-center"><ArrowUpCircle size={14} className="text-rose-400"/> Utang & Bon</p>
            <p className="text-lg font-black text-rose-600">{formatRupiah(debts.filter(d => d.type === 'debt' && d.status === 'active').reduce((a,c) => a + c.amount, 0))}</p>
         </div>
         <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-transform active:scale-95 text-center">
-           <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Piutang Saya</p>
+           <p className="text-[10px] font-black text-gray-400 uppercase mb-2 flex items-center gap-2 justify-center"><ArrowDownCircle size={14} className="text-indigo-400"/> Piutang Saya</p>
            <p className="text-lg font-black text-indigo-600">{formatRupiah(debts.filter(d => d.type === 'receivable' && d.status === 'active').reduce((a,c) => a + c.amount, 0))}</p>
         </div>
       </div>
@@ -598,20 +623,20 @@ export default function App() {
           <div>
             <div className="flex justify-between text-[10px] font-black mb-3 uppercase tracking-widest">
               <span className="text-gray-400 flex items-center gap-2"><PiggyBank size={14}/> Target Tabungan</span>
-              <span className="text-emerald-600">{formatRupiah(balances.Tabungan)} / {formatRupiah(settings.targets.tabungan)}</span>
+              <span className="text-emerald-600">{formatRupiah(balances.Tabungan)} / {formatRupiah(settings?.targets?.tabungan || 0)}</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-5 relative overflow-hidden">
-              <div className="h-5 rounded-full bg-emerald-500 transition-all duration-1000 shadow-inner" style={{ width: `${Math.min((balances.Tabungan / settings.targets.tabungan) * 100 || 0, 100)}%` }}></div>
+              <div className="h-5 rounded-full bg-emerald-500 transition-all duration-1000 shadow-inner" style={{ width: `${Math.min((balances.Tabungan / (settings?.targets?.tabungan || 1)) * 100 || 0, 100)}%` }}></div>
             </div>
           </div>
 
           <div>
             <div className="flex justify-between text-[10px] font-black mb-3 uppercase tracking-widest">
               <span className="text-gray-400 flex items-center gap-2"><ShieldAlert size={14}/> Target Dana Darurat</span>
-              <span className="text-amber-600">{formatRupiah(balances.Darurat)} / {formatRupiah(settings.targets.darurat)}</span>
+              <span className="text-amber-600">{formatRupiah(balances.Darurat)} / {formatRupiah(settings?.targets?.darurat || 0)}</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-5 relative overflow-hidden">
-              <div className="h-5 rounded-full bg-amber-500 transition-all duration-1000 shadow-inner" style={{ width: `${Math.min((balances.Darurat / settings.targets.darurat) * 100 || 0, 100)}%` }}></div>
+              <div className="h-5 rounded-full bg-amber-500 transition-all duration-1000 shadow-inner" style={{ width: `${Math.min((balances.Darurat / (settings?.targets?.darurat || 1)) * 100 || 0, 100)}%` }}></div>
             </div>
           </div>
 
@@ -751,11 +776,11 @@ export default function App() {
           <div className="space-y-5">
             <div>
               <label className="block text-[9px] font-black text-gray-500 mb-2 uppercase">Tabungan</label>
-              <input type="text" inputMode="numeric" value={formatNumberInput(settings.targets.tabungan)} onChange={(e) => setSettingsApp({...settings, targets: {...settings.targets, tabungan: Number(parseNumberInput(e.target.value))}})} className="w-full p-4 bg-gray-50 border-0 rounded-2xl outline-none font-bold text-sm" />
+              <input type="text" inputMode="numeric" value={formatNumberInput(settings?.targets?.tabungan || 0)} onChange={(e) => setSettingsApp({...settings, targets: {...settings.targets, tabungan: Number(parseNumberInput(e.target.value))}})} className="w-full p-4 bg-gray-50 border-0 rounded-2xl outline-none font-bold text-sm" />
             </div>
             <div>
               <label className="block text-[9px] font-black text-gray-500 mb-2 uppercase">Dana Darurat</label>
-              <input type="text" inputMode="numeric" value={formatNumberInput(settings.targets.darurat)} onChange={(e) => setSettingsApp({...settings, targets: {...settings.targets, darurat: Number(parseNumberInput(e.target.value))}})} className="w-full p-4 bg-gray-50 border-0 rounded-2xl outline-none font-bold text-sm" />
+              <input type="text" inputMode="numeric" value={formatNumberInput(settings?.targets?.darurat || 0)} onChange={(e) => setSettingsApp({...settings, targets: {...settings.targets, darurat: Number(parseNumberInput(e.target.value))}})} className="w-full p-4 bg-gray-50 border-0 rounded-2xl outline-none font-bold text-sm" />
             </div>
           </div>
         </section>
@@ -765,15 +790,15 @@ export default function App() {
           <div className="grid grid-cols-3 gap-4">
              <div className="text-center">
                 <label className="block text-[8px] font-black text-indigo-600 mb-2 uppercase">UTAMA</label>
-                <input type="number" value={settings.allocations.kebutuhan} onChange={(e) => setSettingsApp({...settings, allocations: {...settings.allocations, kebutuhan: e.target.value}})} className="w-full p-3 bg-indigo-50 border-0 rounded-2xl text-center font-black text-xs" />
+                <input type="number" value={settings?.allocations?.kebutuhan || 0} onChange={(e) => setSettingsApp({...settings, allocations: {...settings.allocations, kebutuhan: e.target.value}})} className="w-full p-3 bg-indigo-50 border-0 rounded-2xl text-center font-black text-xs" />
              </div>
              <div className="text-center">
                 <label className="block text-[8px] font-black text-emerald-600 mb-2 uppercase">TABUNG</label>
-                <input type="number" value={settings.allocations.tabungan} onChange={(e) => setSettingsApp({...settings, allocations: {...settings.allocations, tabungan: e.target.value}})} className="w-full p-3 bg-emerald-50 border-0 rounded-2xl text-center font-black text-xs" />
+                <input type="number" value={settings?.allocations?.tabungan || 0} onChange={(e) => setSettingsApp({...settings, allocations: {...settings.allocations, tabungan: e.target.value}})} className="w-full p-3 bg-emerald-50 border-0 rounded-2xl text-center font-black text-xs" />
              </div>
              <div className="text-center">
                 <label className="block text-[8px] font-black text-amber-600 mb-2 uppercase">DARURAT</label>
-                <input type="number" value={settings.allocations.darurat} onChange={(e) => setSettingsApp({...settings, allocations: {...settings.allocations, darurat: e.target.value}})} className="w-full p-3 bg-amber-50 border-0 rounded-2xl text-center font-black text-xs" />
+                <input type="number" value={settings?.allocations?.darurat || 0} onChange={(e) => setSettingsApp({...settings, allocations: {...settings.allocations, darurat: e.target.value}})} className="w-full p-3 bg-amber-50 border-0 rounded-2xl text-center font-black text-xs" />
              </div>
           </div>
           <p className={`text-[9px] font-bold mt-4 uppercase text-center ${Number(settings.allocations.kebutuhan) + Number(settings.allocations.tabungan) + Number(settings.allocations.darurat) === 100 ? 'text-emerald-500' : 'text-rose-500'}`}>

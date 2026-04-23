@@ -131,7 +131,6 @@ export default function App() {
       if (localTrans) setTransactions(JSON.parse(localTrans));
       if (localDebts) setDebts(JSON.parse(localDebts));
       if (localSettings) {
-        // Logika Pengaman: Gabungkan data lama dengan struktur baru agar tidak crash
         const saved = JSON.parse(localSettings);
         setSettingsApp({
           ...defaultSettings,
@@ -185,9 +184,9 @@ export default function App() {
       const amount = Number(t.amount);
       if (t.type === 'income') {
         if (t.autoAllocate) {
-          result.Utama += amount * (Number(settings.allocations.kebutuhan) / 100);
-          result.Tabungan += amount * (Number(settings.allocations.tabungan) / 100);
-          result.Darurat += amount * (Number(settings.allocations.darurat) / 100);
+          result.Utama += amount * (Number(settings?.allocations?.kebutuhan || 50) / 100);
+          result.Tabungan += amount * (Number(settings?.allocations?.tabungan || 30) / 100);
+          result.Darurat += amount * (Number(settings?.allocations?.darurat || 20) / 100);
         } else {
           if (result[t.destWallet] !== undefined) result[t.destWallet] += amount;
         }
@@ -216,11 +215,9 @@ export default function App() {
     const diff = curr.getDate() - day + (day === 0 ? -6 : 1);
     const mondayDate = new Date(curr.setDate(diff));
     const monday = mondayDate.toISOString().split('T')[0];
-    
     const sundayDate = new Date(mondayDate);
     sundayDate.setDate(mondayDate.getDate() + 6);
     const sunday = sundayDate.toISOString().split('T')[0];
-    
     return { monday, sunday };
   }, []);
 
@@ -424,11 +421,11 @@ export default function App() {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-transform active:scale-95 text-center">
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-transform active:scale-95 text-center" onClick={() => setActiveTab('debts')}>
            <p className="text-[10px] font-black text-gray-400 uppercase mb-2 flex items-center gap-2 justify-center"><ArrowUpCircle size={14} className="text-rose-400"/> Utang & Bon</p>
            <p className="text-lg font-black text-rose-600">{formatRupiah(debts.filter(d => d.type === 'debt' && d.status === 'active').reduce((a,c) => a + c.amount, 0))}</p>
         </div>
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-transform active:scale-95 text-center">
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-transform active:scale-95 text-center" onClick={() => setActiveTab('debts')}>
            <p className="text-[10px] font-black text-gray-400 uppercase mb-2 flex items-center gap-2 justify-center"><ArrowDownCircle size={14} className="text-indigo-400"/> Piutang Saya</p>
            <p className="text-lg font-black text-indigo-600">{formatRupiah(debts.filter(d => d.type === 'receivable' && d.status === 'active').reduce((a,c) => a + c.amount, 0))}</p>
         </div>
@@ -807,7 +804,7 @@ export default function App() {
         </section>
 
         {showNotification && (
-          <div className="p-4 bg-gray-900 text-white rounded-[2rem] text-center font-black text-[10px] uppercase tracking-widest animate-pulse">OK!</div>
+          <div className="p-4 bg-gray-900 text-white rounded-[2rem] text-center font-black text-[10px] uppercase tracking-widest animate-pulse">Berhasil!</div>
         )}
 
         <button onClick={handleSaveSettings} className="w-full py-5 bg-indigo-600 text-white rounded-[2rem] font-black text-xs tracking-[0.2em] shadow-xl shadow-indigo-100 active:scale-95 transition-all uppercase">
@@ -839,7 +836,9 @@ export default function App() {
             <div className="flex items-center gap-2 text-lg font-black text-gray-950 tracking-tighter uppercase">
               <Wallet size={22} className="text-indigo-600" /> FINANSIALKU
             </div>
-            <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-[10px] font-black">{user?.uid?.substring(0,2) || 'AD'}</div>
+            <button onClick={() => setActiveTab('pengaturan')} className="p-2 bg-gray-100 rounded-xl text-gray-400 active:bg-gray-200">
+               <Settings size={20} />
+            </button>
           </div>
         </header>
         <main className="max-w-6xl mx-auto p-6 md:p-12">
@@ -852,12 +851,12 @@ export default function App() {
         </main>
       </div>
 
-      <nav className="lg:hidden fixed bottom-6 left-6 right-6 h-20 bg-gray-950/95 backdrop-blur-2xl rounded-[2.5rem] px-8 flex justify-around items-center z-30 shadow-2xl border border-white/5">
+      <nav className="lg:hidden fixed bottom-6 left-6 right-6 h-20 bg-gray-950/95 backdrop-blur-2xl rounded-[2.5rem] px-6 flex justify-between items-center z-30 shadow-2xl border border-white/5">
         <NavItem icon={<Home />} isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
         <NavItem icon={<PieChartIcon />} isActive={activeTab === 'laporan'} onClick={() => setActiveTab('laporan')} />
         <button onClick={() => setActiveTab('input')} className="bg-indigo-600 text-white p-5 rounded-[2rem] shadow-2xl shadow-indigo-500/30 transform -translate-y-8 hover:scale-110 active:scale-90 transition-all border-4 border-gray-900"><PlusCircle size={22} /></button>
         <NavItem icon={<HandCoins />} isActive={activeTab === 'debts'} onClick={() => setActiveTab('debts')} />
-        <NavItem icon={<CalcIcon />} isActive={activeTab === 'kalkulator'} onClick={() => setActiveTab('kalkulator')} />
+        <NavItem icon={<Settings />} isActive={activeTab === 'pengaturan'} onClick={() => setActiveTab('pengaturan')} />
       </nav>
     </div>
   );
